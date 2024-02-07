@@ -1,0 +1,23 @@
+{
+   "buffer_capacity": 2,
+   "deployment_delay_in_miliseconds": 16000,
+   "radio_freq_mhz": 868.0,
+   "file_writes": 4,
+   "I2C": {
+      "SDA": "SDA",
+      "SCL": "SCL"
+   },
+   "SPI": {
+      "SCLK": "SCK",
+      "MOSI": "MOSI",
+      "MISO": "MISO"
+   },
+   "UART": {
+      "RX": "RX",
+      "TX": "TX"
+   },
+   "SX1276": {
+      "cs": "A1",
+      "RST": "D6"
+   }
+}
