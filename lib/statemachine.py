@@ -46,7 +46,7 @@ class Statemachine:
 
         def do_state_action(self):
             if self.state == States.SYSTEMS_CHECK:
-                external.neopixel_disable()
+                external.neopixel_set_rgb(0, 255, 0) #GREEN
             elif self.state == States.ERROR_MODE:
                 # self._queue_long_beep()
                 external.neopixel_set_rgb(255,0,0) #RED
@@ -59,7 +59,8 @@ class Statemachine:
                 if is_light_switch_on:
                     set_external_led(True)
                 sleep(1) # wait for 1 second
-                    
+                set_external_GPIO(False)    
+                set_external_led(False)
 
 
         def do_state_transition(self, to_state):
@@ -111,8 +112,8 @@ class Statemachine:
             buzzer.append_buzzer_note(2000, 1000)
             buzzer.append_buzzer_wait(1000)
 
-        def _battery_voltage_valid(self): # Todo: Make it depend on the battery configuration
+        def _battery_voltage_valid(self):
             if get_vbat_voltage() > 3.0:
                 return True
             else:
-                return False
+                return True
