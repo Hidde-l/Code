@@ -61,6 +61,7 @@ class Statemachine:
                 sleep(1) # wait for 1 second
                 set_external_GPIO(False)    
                 set_external_led(False)
+                sleep(1) # wait for 1 second
 
 
         def do_state_transition(self, to_state):
