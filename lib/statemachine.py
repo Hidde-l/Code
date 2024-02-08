@@ -1,12 +1,14 @@
 import time
+from time import sleep
 import buzzer
 import external
-from measure import get_vbat_voltage, is_buzzer_switch_on, is_light_switch_on
+from external import set_external_led, set_external_GPIO 
+from measure import is_pyro_inserted, is_bw_inserted, is_armed, get_vbat_voltage, is_buzzer_switch_on, is_light_switch_on
 
 class States():
         SYSTEMS_CHECK = 0
         ERROR_MODE = 1
-        SEARCH_MODE = 2
+        DATA_MODE = 2
 
 class Statemachine:
 
@@ -34,29 +36,30 @@ class Statemachine:
                 if not self._battery_voltage_valid():
                     self.do_state_transition(States.ERROR_MODE)
                 else:
-                    self.do_state_transition(States.SEARCH_MODE)
+                    self.do_state_transition(States.DATA_MODE)
 
             elif self.state == States.ERROR_MODE:
                 if self._battery_voltage_valid():
-                    self.do_state_transition(States.SEARCH_MODE)
+                    self.do_state_transition(States.DATA_MODE)
 
-            elif self.state == States.SEARCH_MODE:
+            elif self.state == States.DATA_MODE:
                 if not self._battery_voltage_valid():
                     self.do_state_transition(States.ERROR_MODE)
+
 
         def do_state_action(self):
             if self.state == States.SYSTEMS_CHECK:
                 external.neopixel_set_rgb(0, 255, 0) #GREEN
             elif self.state == States.ERROR_MODE:
-                # self._queue_long_beep()
+                #self._queue_long_beep()
                 external.neopixel_set_rgb(255,0,0) #RED
-            elif self.state == States.SEARCH_MODE:
+            elif self.state == States.DATA_MODE:
                 external.neopixel_set_rgb(0,0,255) #BLUE
 
-                if is_buzzer_switch_on:
+                if is_buzzer_switch_on():
                     set_external_GPIO(True)
-                    self._queue_long_beep()
-                if is_light_switch_on:
+                    # self._queue_long_beep()
+                if is_light_switch_on():
                     set_external_led(True)
                 sleep(1) # wait for 1 second
                 set_external_GPIO(False)    
@@ -71,30 +74,41 @@ class Statemachine:
                 if to_state == States.ERROR_MODE:
                     self.state = States.ERROR_MODE
                     state_trans_has_happened = True
-                elif to_state == States.SEARCH_MODE:
-                    self.state = States.SEARCH_MODE
+                elif to_state == States.DATA_MODE:
+                    self.state = States.DATA_MODE
                     self._queue_short_beep()
                     state_trans_has_happened = True
-
+                    
             elif self.state == States.ERROR_MODE:
-                if to_state == States.SEARCH_MODE:
-                    self.state = States.SEARCH_MODE
+                if to_state == States.DATA_MODE:
+                    self.state = States.DATA_MODE
                     self._queue_short_beep()
                     state_trans_has_happened = True
 
-            elif self.state == States.SEARCH_MODE:
-                if to_state == States.ERROR_MODE:
+            elif self.state == States.DATA_MODE:
+                if to_state == States.PREPERATION_MODE:
+                    self.state = States.PREPERATION_MODE
+                    self._queue_short_beep()
+                    state_trans_has_happened = True
+                elif to_state == States.ERROR_MODE:
                     self.state = States.ERROR_MODE
                     state_trans_has_happened = True
 
             if state_trans_has_happened:
-                for _ in range(self.state):
-                    self._queue_short_beep()
                 self.do_state_action()
                 self._reset_state_timer()
 
         def check_if_pyro_should_be_fired(self):
-            return False
+            if self.state != States.LAUNCHED_MODE: # Not in launching state of the statediagram
+                return False
+            if self.LAUNCHED == False: # Has not launched yet
+                return False
+            if self.launched_time == 0: # The launchtimer has not been set yet
+                return False
+            if self.launched_time + self.PYRO_FIRE_DELAY_MS < round(time.monotonic()*1000): # The amount of time has passed
+                return True
+            else:
+                return False
 
         def set_launched_time(self):
             if self.LAUNCHED == True:
@@ -113,7 +127,7 @@ class Statemachine:
             buzzer.append_buzzer_note(2000, 1000)
             buzzer.append_buzzer_wait(1000)
 
-        def _battery_voltage_valid(self):
+        def _battery_voltage_valid(self): # Todo: Make it depend on the battery configuration
             if get_vbat_voltage() > 3.0:
                 return True
             else:
