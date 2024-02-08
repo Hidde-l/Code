@@ -1,16 +1,14 @@
 import time
+from time import sleep
 import buzzer
 import external
-from measure import is_pyro_inserted, is_bw_inserted, is_armed, get_vbat_voltage
+from external import set_external_led, set_external_GPIO 
+from measure import is_pyro_inserted, is_bw_inserted, is_armed, get_vbat_voltage, is_buzzer_switch_on, is_light_switch_on
 
 class States():
         SYSTEMS_CHECK = 0
         ERROR_MODE = 1
-        IDLE_MODE = 2
-        PREPERATION_MODE = 3
-        ARMED_MODE = 4
-        LAUNCHED_MODE = 5
-        DEPLOYED_MODE = 6
+        DATA_MODE = 2
 
 class Statemachine:
 
@@ -35,63 +33,39 @@ class Statemachine:
 
         def check_state_transition(self):
             if self.state == States.SYSTEMS_CHECK:
-                if not is_pyro_inserted() or not self._battery_voltage_valid():
+                if not self._battery_voltage_valid():
                     self.do_state_transition(States.ERROR_MODE)
-                elif is_pyro_inserted() and self._battery_voltage_valid():
-                    self.do_state_transition(States.IDLE_MODE)
+                else:
+                    self.do_state_transition(States.DATA_MODE)
 
             elif self.state == States.ERROR_MODE:
-                if is_pyro_inserted() and not is_armed() and self._battery_voltage_valid():
-                    self.do_state_transition(States.IDLE_MODE)
+                if self._battery_voltage_valid():
+                    self.do_state_transition(States.DATA_MODE)
 
-            elif self.state == States.IDLE_MODE:
-                if is_armed():
+            elif self.state == States.DATA_MODE:
+                if not self._battery_voltage_valid():
                     self.do_state_transition(States.ERROR_MODE)
-                elif is_bw_inserted():
-                    self.do_state_transition(States.PREPERATION_MODE)
-
-            elif self.state == States.PREPERATION_MODE:
-                if is_armed() and not is_pyro_inserted():
-                    self.do_state_transition(States.ERROR_MODE)
-                elif is_armed() and is_pyro_inserted():
-                    self.do_state_transition(States.ARMED_MODE)
-                elif not is_bw_inserted():
-                    self.do_state_transition(States.IDLE_MODE)
-
-            elif self.state == States.ARMED_MODE:
-                if not is_armed():
-                    self.do_state_transition(States.PREPERATION_MODE)
-                elif not is_bw_inserted():
-                    self.do_state_transition(States.LAUNCHED_MODE)
-
-
-            elif self.state == States.LAUNCHED_MODE:
-                if self.check_if_pyro_should_be_fired():
-                    self.do_state_transition(States.DEPLOYED_MODE)
-
-            elif self.state == States.DEPLOYED_MODE:
-                pass
 
 
         def do_state_action(self):
             if self.state == States.SYSTEMS_CHECK:
-                external.neopixel_disable()
+                external.neopixel_set_rgb(0, 255, 0) #GREEN
             elif self.state == States.ERROR_MODE:
-                self._queue_long_beep()
-                external.neopixel_set_rgb(255,0,0)
-            elif self.state == States.IDLE_MODE:
-                external.neopixel_set_rgb(0,0,255)
-            elif self.state == States.PREPERATION_MODE:
-                external.neopixel_set_rgb(255,255,0)
-            elif self.state == States.ARMED_MODE:
-                external.neopixel_set_rgb(255,100,0)
-            elif self.state == States.LAUNCHED_MODE:
-                self._queue_short_beep()
-                external.neopixel_set_rgb(0,255,0)
-            elif self.state == States.DEPLOYED_MODE:
-                self._queue_long_beep()
-                external.neopixel_set_rgb(255,30,70)
-                external.PYRO_DETONATE()
+                #self._queue_long_beep()
+                external.neopixel_set_rgb(255,0,0) #RED
+            elif self.state == States.DATA_MODE:
+                external.neopixel_set_rgb(0,0,255) #BLUE
+
+                if is_buzzer_switch_on():
+                    set_external_GPIO(True)
+                    # self._queue_long_beep()
+                if is_light_switch_on():
+                    set_external_led(True)
+                sleep(1) # wait for 1 second
+                set_external_GPIO(False)    
+                set_external_led(False)
+                sleep(1) # wait for 1 second
+
 
         def do_state_transition(self, to_state):
             state_trans_has_happened = False
@@ -100,58 +74,27 @@ class Statemachine:
                 if to_state == States.ERROR_MODE:
                     self.state = States.ERROR_MODE
                     state_trans_has_happened = True
-                elif to_state == States.IDLE_MODE:
-                    self.state = States.IDLE_MODE
+                elif to_state == States.DATA_MODE:
+                    self.state = States.DATA_MODE
                     self._queue_short_beep()
                     state_trans_has_happened = True
-
-            elif self.state == States.IDLE_MODE:
-                if to_state == States.PREPERATION_MODE:
-                    self.state = States.PREPERATION_MODE
-                    self._queue_short_beep()
-                    state_trans_has_happened = True
-                elif to_state == States.ERROR_MODE:
-                    self.state = States.ERROR_MODE
-                    state_trans_has_happened = True
-
-            elif self.state == States.PREPERATION_MODE:
-                if to_state == States.ARMED_MODE:
-                    self.state = States.ARMED_MODE
-                    self._queue_short_beep()
-                    state_trans_has_happened = True
-                elif to_state == States.IDLE_MODE:
-                    self.state = States.IDLE_MODE
-                    self._queue_long_beep()
-                    state_trans_has_happened = True
-                elif to_state == States.ERROR_MODE:
-                    self.state = States.ERROR_MODE
-                    state_trans_has_happened = True
-
-            elif self.state == States.ARMED_MODE:
-                if to_state == States.PREPERATION_MODE:
-                    self.state = States.PREPERATION_MODE
-                    self._queue_long_beep()
-                    state_trans_has_happened = True
-                elif to_state == States.LAUNCHED_MODE:
-                    self.state = States.LAUNCHED_MODE
-                    self.LAUNCHED = True
-                    self.set_launched_time()
-                    state_trans_has_happened = True
-
-            elif self.state == States.LAUNCHED_MODE:
-                if to_state == States.DEPLOYED_MODE:
-                    self.state = States.DEPLOYED_MODE
-                    state_trans_has_happened = True
-
+                    
             elif self.state == States.ERROR_MODE:
-                if to_state == States.IDLE_MODE:
-                    self.state = States.IDLE_MODE
-                    # self._queue_short_beep()
+                if to_state == States.DATA_MODE:
+                    self.state = States.DATA_MODE
+                    self._queue_short_beep()
+                    state_trans_has_happened = True
+
+            elif self.state == States.DATA_MODE:
+                if to_state == States.PREPERATION_MODE:
+                    self.state = States.PREPERATION_MODE
+                    self._queue_short_beep()
+                    state_trans_has_happened = True
+                elif to_state == States.ERROR_MODE:
+                    self.state = States.ERROR_MODE
                     state_trans_has_happened = True
 
             if state_trans_has_happened:
-                for _ in range(self.state):
-                    self._queue_short_beep()
                 self.do_state_action()
                 self._reset_state_timer()
 
@@ -188,4 +131,4 @@ class Statemachine:
             if get_vbat_voltage() > 3.0:
                 return True
             else:
-                return False
+                return True
