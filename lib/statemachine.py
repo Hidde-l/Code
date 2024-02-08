@@ -1,7 +1,7 @@
 import time
 import buzzer
 import external
-from measure import get_vbat_voltage
+from measure import get_vbat_voltage, is_buzzer_switch_on, is_light_switch_on
 
 class States():
         SYSTEMS_CHECK = 0
@@ -53,6 +53,15 @@ class Statemachine:
             elif self.state == States.SEARCH_MODE:
                 external.neopixel_set_rgb(0,0,255) #BLUE
 
+                if is_buzzer_switch_on:
+                    set_external_GPIO(True)
+                    self._queue_long_beep()
+                if is_light_switch_on:
+                    set_external_led(True)
+                sleep(1) # wait for 1 second
+                    
+
+
         def do_state_transition(self, to_state):
             state_trans_has_happened = False
 
@@ -82,15 +91,15 @@ class Statemachine:
                 self.do_state_action()
                 self._reset_state_timer()
 
-        # def check_if_pyro_should_be_fired(self):
-            # return False
+        def check_if_pyro_should_be_fired(self):
+            return False
 
-        # def set_launched_time(self):
-        #     if self.LAUNCHED == True:
-        #         self.launched_time = round(time.monotonic()*1000)
+        def set_launched_time(self):
+            if self.LAUNCHED == True:
+                self.launched_time = round(time.monotonic()*1000)
 
-        # def _reset_state_timer(self):
-        #     self.last_state_transition = round(time.monotonic()*1000)
+        def _reset_state_timer(self):
+            self.last_state_transition = round(time.monotonic()*1000)
 
         def _queue_short_beep(self):
             buzzer.append_buzzer_note(2000, 100)

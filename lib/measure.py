@@ -29,6 +29,17 @@ _pyro_cont_sense = DigitalInOut(_pyro_cont_sense_pin)
 _pyro_cont_sense.direction = Direction.INPUT
 _pyro_cont_sense.pull = Pull.UP
 
+def is_light_switch_on():
+        '''
+        if the system is armed, this pin will be pulled low so it will return False
+        '''
+        return not _arm_sense.value
+
+def is_buzzer_switch_on():
+        '''
+        if the pyro pins have continuity, the pin will be pulled high so it will return True
+        '''
+        return _pyro_cont_sense.value
 
 def is_bw_inserted():
         '''
