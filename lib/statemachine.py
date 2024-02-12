@@ -2,7 +2,7 @@ import time
 from time import sleep
 import buzzer
 import external
-from external import set_external_led, set_external_GPIO 
+from external import set_external_led, set_external_GPIO
 from measure import is_pyro_inserted, is_bw_inserted, is_armed, get_vbat_voltage, is_buzzer_switch_on, is_light_switch_on
 
 class States():
@@ -59,11 +59,12 @@ class Statemachine:
                 if is_buzzer_switch_on():
                     set_external_GPIO(True)
                     # self._queue_long_beep()
-                if is_light_switch_on():
-                    set_external_led(True)
+
+                #if is_light_switch_on():
+                external._ext_led.value = True
                 sleep(1) # wait for 1 second
-                set_external_GPIO(False)    
-                set_external_led(False)
+                set_external_GPIO(False)
+                external._ext_led.value = False
                 sleep(1) # wait for 1 second
 
 
@@ -78,7 +79,7 @@ class Statemachine:
                     self.state = States.DATA_MODE
                     self._queue_short_beep()
                     state_trans_has_happened = True
-                    
+
             elif self.state == States.ERROR_MODE:
                 if to_state == States.DATA_MODE:
                     self.state = States.DATA_MODE
