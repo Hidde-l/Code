@@ -12,5 +12,5 @@ print(f'Read in a delay of {delay_pyro_miliseconds} ms from the config file')
 states = statemachine.Statemachine(PYRO_FIRE_DELAY_MS = delay_pyro_miliseconds)
 
 while True:
-   #buzzer.buzzer_tick()
-   states.tick()
+    buzzer.buzzer_tick()
+    states.tick()
